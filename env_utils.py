@@ -78,3 +78,14 @@ def show_all_view(env):
     masked_view = get_masked_view(env)
     all_view = np.concatenate((view, view_mask, top_view, masked_view), axis=1)
     plt_show(all_view, figsize=(16, 16))
+
+
+def show_observable_view(env):
+    view = get_view(env)
+    masked_view = get_masked_view(env)
+    all_view = np.concatenate((view, masked_view), axis=1)
+    plt_show(all_view, figsize=(10, 10))
+
+
+def get_data(env):
+    return get_view(env), get_masked_view(env)
