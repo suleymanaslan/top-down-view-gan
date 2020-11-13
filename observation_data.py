@@ -52,6 +52,6 @@ class ObservationData:
             batch_size = self.batch_size
         available_data = min(self.counter, self.data_buffer_size)
         batch_ix = np.random.choice(available_data, batch_size)
-        batch_x = self.data_x[batch_ix]
-        batch_y = self.data_y[batch_ix]
+        batch_x = self.data_x[batch_ix].to(self.gpu_device)
+        batch_y = self.data_y[batch_ix].to(self.gpu_device)
         return batch_x, batch_y

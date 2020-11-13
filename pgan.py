@@ -1,25 +1,19 @@
-import torch.utils.data
-import torchvision.datasets as datasets
-import torchvision.transforms as transforms
 from model import Model
+from env import Env
 
-model = Model(max_scale=4,
-              steps_per_scale=int(25e3),
-              batch_size=16,
+model = Model(max_scale=5,
+              steps_per_scale=int(5e3),
               lr=1e-3)
 
-stl10_data = datasets.STL10("datasets/stl10",
-                            split="train+unlabeled",
-                            folds=None,
-                            transform=transforms.Compose([transforms.Resize(model.image_size),
-                                                          transforms.CenterCrop(model.image_size),
-                                                          transforms.ToTensor(),
-                                                          ]),
-                            download=True)
-dataloader = torch.utils.data.DataLoader(stl10_data,
-                                         batch_size=model.batch_size,
-                                         drop_last=True,
-                                         shuffle=True,
-                                         pin_memory=True)
+env = Env(obs_buffer_size=25,
+          data_buffer_size=1024,
+          batch_size=16)
 
-model.train(dataloader)
+for step_i in range(int(50e3)):
+    if step_i % 30 == 0:
+        for _ in range(24):
+            obs_data = env.step()
+    x, y = obs_data.get_sample()
+    model.train_step(x, y)
+
+env.close()

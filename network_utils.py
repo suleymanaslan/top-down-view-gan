@@ -50,16 +50,16 @@ def finite_check(parameters):
         p.grad.data[nan_grads] = 0
 
 
-def wgangp_gradient_penalty(net_input, fake, discriminator, weight, backward=True):
-    batch_size = net_input.size(0)
+def wgangp_gradient_penalty(batch_x, batch_y, fake, size, discriminator, weight, backward=True):
+    batch_size = batch_y.size(0)
     alpha = torch.rand(batch_size, 1)
-    alpha = alpha.expand(batch_size, int(net_input.nelement() / batch_size)).contiguous().view(net_input.size())
-    alpha = alpha.to(net_input.device)
-    interpolates = alpha * net_input + ((1 - alpha) * fake)
+    alpha = alpha.expand(batch_size, int(batch_y.nelement() / batch_size)).contiguous().view(batch_y.size())
+    alpha = alpha.to(batch_y.device)
+    interpolates = alpha * batch_y + ((1 - alpha) * fake)
 
     interpolates = torch.autograd.Variable(interpolates, requires_grad=True)
 
-    decision_interpolate = discriminator(interpolates, False)
+    decision_interpolate = discriminator(batch_x, interpolates, size, False)
     decision_interpolate = decision_interpolate[:, 0].sum()
 
     gradients = torch.autograd.grad(outputs=decision_interpolate, inputs=interpolates, create_graph=True,

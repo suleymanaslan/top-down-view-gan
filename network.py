@@ -7,15 +7,48 @@ from layers import flatten, upscale2d, EqualizedLinear, EqualizedConv2d, Normali
 from network_utils import mini_batch_std_dev
 
 
+class EncoderBlock(nn.Module):
+    def __init__(self, depth_scale):
+        super(EncoderBlock, self).__init__()
+        self.block = nn.Sequential(nn.Conv2d(depth_scale, depth_scale, 3, 1, 1),
+                                   nn.LeakyReLU(0.2, inplace=True),
+                                   nn.Conv2d(depth_scale, depth_scale, 3, 1, 1),
+                                   nn.LeakyReLU(0.2, inplace=True), nn.AvgPool2d(2),
+                                   )
+
+    def forward(self, x):
+        return self.block(x)
+
+
+class Encoder(nn.Module):
+    def __init__(self):
+        super(Encoder, self).__init__()
+        self.depth_scale = 128
+        self.net = nn.Sequential(nn.Conv2d(75, self.depth_scale, 1, 1, 0), nn.LeakyReLU(0.2, inplace=True),
+                                 EncoderBlock(self.depth_scale),
+                                 EncoderBlock(self.depth_scale),
+                                 EncoderBlock(self.depth_scale),
+                                 EncoderBlock(self.depth_scale),
+                                 EncoderBlock(self.depth_scale),
+                                 )
+        self.out_dim = 128 * 4 * 4
+
+    def forward(self, x):
+        x = x.view(x.shape[0], 75, 128, 128)
+        return self.net(x).view(-1, self.out_dim)
+
+
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
-        self.dim_latent = 512
+        self.dim_latent = 128 * 4 * 4
         self.depth_scale0 = 128
         self.dim_output = 3
         self.equalized_lr = True
         self.init_bias_to_zero = True
         self.scales_depth = [self.depth_scale0]
+
+        self.encoder = Encoder()
 
         self.scale_layers = nn.ModuleList()
 
@@ -53,11 +86,14 @@ class Generator(nn.Module):
 
         self.to_rgb_layers.append(EqualizedConv2d(depth_new_scale, self.dim_output, 1, equalized=self.equalized_lr,
                                                   init_bias_to_zero=self.init_bias_to_zero))
+        self.encoder.add_scale()
 
     def set_alpha(self, alpha):
         self.alpha = alpha
 
     def forward(self, x):
+        x = self.encoder(x)
+
         x = self.normalization_layer(x)
         x = flatten(x)
         x = self.leaky_relu(self.format_layer(x))
@@ -92,10 +128,19 @@ class Generator(nn.Module):
         return x
 
 
+class DiscriminatorFormat(nn.Module):
+    def __init__(self):
+        super(DiscriminatorFormat, self).__init__()
+
+    def forward(self, x, y, size):
+        x = x.view(x.shape[0], 75, size, size)
+        return torch.cat((x, y), dim=1)
+
+
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
-        self.dim_input = 3
+        self.dim_input = 78
         self.depth_scale0 = 128
         self.size_decision_layer = 1
         self.equalized_lr = True
@@ -103,6 +148,8 @@ class Discriminator(nn.Module):
         self.mini_batch_normalization = True
         self.dim_entry_scale0 = self.depth_scale0 + 1
         self.scales_depth = [self.depth_scale0]
+
+        self.discriminator_format = DiscriminatorFormat()
 
         self.scale_layers = nn.ModuleList()
 
@@ -146,10 +193,12 @@ class Discriminator(nn.Module):
     def set_alpha(self, alpha):
         self.alpha = alpha
 
-    def forward(self, x, get_feature=False):
+    def forward(self, x, y, size, get_feature=False):
+        x = self.discriminator_format(x, y, size)
+
         if self.alpha > 0 and len(self.from_rgb_layers) > 1:
-            y = F.avg_pool2d(x, (2, 2))
-            y = self.leaky_relu(self.from_rgb_layers[-2](y))
+            z = F.avg_pool2d(x, (2, 2))
+            z = self.leaky_relu(self.from_rgb_layers[-2](z))
 
         x = self.leaky_relu(self.from_rgb_layers[-1](x))
 
@@ -165,7 +214,7 @@ class Discriminator(nn.Module):
 
             if merge_layer:
                 merge_layer = False
-                x = self.alpha * y + (1 - self.alpha) * x
+                x = self.alpha * z + (1 - self.alpha) * x
 
             shift -= 1
 
