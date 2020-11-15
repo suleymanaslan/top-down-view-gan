@@ -127,3 +127,4 @@ dmypy.json
 .idea/
 datasets/
 trained_models/
+data/
