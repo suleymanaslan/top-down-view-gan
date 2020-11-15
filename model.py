@@ -108,19 +108,19 @@ class Model:
             self.alpha = max(0.0, self.alpha - self.alpha_update_cons)
 
         if self.scale < self.max_scale:
-            batch_x = F.avg_pool2d(batch_x.view(batch_x.shape[0], 75, 128, 128), (2, 2))
+            batch_x = F.avg_pool2d(batch_x.view(batch_x.shape[0], 63, 128, 128), (2, 2))
             batch_y = F.avg_pool2d(batch_y, (2, 2))
             for _ in range(1, self.max_scale - self.scale):
                 batch_x = F.avg_pool2d(batch_x, (2, 2))
                 batch_y = F.avg_pool2d(batch_y, (2, 2))
-            batch_x = batch_x.view(batch_x.shape[0], 25, 3, size, size)
+            batch_x = batch_x.view(batch_x.shape[0], 3, 21, size, size)
 
         if self.alpha > 0:
-            low_res_real_x = F.avg_pool2d(batch_x.view(batch_x.shape[0], 75, size, size), (2, 2))
+            low_res_real_x = F.avg_pool2d(batch_x.view(batch_x.shape[0], 63, size, size), (2, 2))
             low_res_real_y = F.avg_pool2d(batch_y, (2, 2))
             low_res_real_x = F.interpolate(low_res_real_x, scale_factor=2, mode='nearest')
             low_res_real_y = F.interpolate(low_res_real_y, scale_factor=2, mode='nearest')
-            batch_x = self.alpha * low_res_real_x.view(batch_x.shape[0], 25, 3, size, size) + (1 - self.alpha) * batch_x
+            batch_x = self.alpha * low_res_real_x.view(batch_x.shape[0], 3, 21, size, size) + (1 - self.alpha) * batch_x
             batch_y = self.alpha * low_res_real_y + (1 - self.alpha) * batch_y
 
         self.generator.set_alpha(self.alpha)

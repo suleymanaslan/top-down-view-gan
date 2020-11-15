@@ -24,7 +24,7 @@ class Encoder(nn.Module):
     def __init__(self):
         super(Encoder, self).__init__()
         self.depth_scale = 128
-        self.net = nn.Sequential(nn.Conv2d(75, self.depth_scale, 1, 1, 0), nn.LeakyReLU(0.2, inplace=True),
+        self.net = nn.Sequential(nn.Conv2d(63, self.depth_scale, 1, 1, 0), nn.LeakyReLU(0.2, inplace=True),
                                  EncoderBlock(self.depth_scale),
                                  EncoderBlock(self.depth_scale),
                                  EncoderBlock(self.depth_scale),
@@ -34,7 +34,7 @@ class Encoder(nn.Module):
         self.out_dim = 128 * 4 * 4
 
     def forward(self, x):
-        x = x.view(x.shape[0], 75, 128, 128)
+        x = x.view(x.shape[0], 63, 128, 128)
         return self.net(x).view(-1, self.out_dim)
 
 
@@ -133,14 +133,14 @@ class DiscriminatorFormat(nn.Module):
         super(DiscriminatorFormat, self).__init__()
 
     def forward(self, x, y, size):
-        x = x.view(x.shape[0], 75, size, size)
+        x = x.view(x.shape[0], 63, size, size)
         return torch.cat((x, y), dim=1)
 
 
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
-        self.dim_input = 78
+        self.dim_input = 66
         self.depth_scale0 = 128
         self.size_decision_layer = 1
         self.equalized_lr = True
