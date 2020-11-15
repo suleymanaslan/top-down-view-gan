@@ -86,7 +86,6 @@ class Generator(nn.Module):
 
         self.to_rgb_layers.append(EqualizedConv2d(depth_new_scale, self.dim_output, 1, equalized=self.equalized_lr,
                                                   init_bias_to_zero=self.init_bias_to_zero))
-        self.encoder.add_scale()
 
     def set_alpha(self, alpha):
         self.alpha = alpha
