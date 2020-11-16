@@ -23,7 +23,7 @@ class EncoderBlock(nn.Module):
 class Encoder(nn.Module):
     def __init__(self):
         super(Encoder, self).__init__()
-        self.depth_scale = 128
+        self.depth_scale = 64
         self.net = nn.Sequential(nn.Conv2d(63, self.depth_scale, 1, 1, 0), nn.LeakyReLU(0.2, inplace=True),
                                  EncoderBlock(self.depth_scale),
                                  EncoderBlock(self.depth_scale),
@@ -31,7 +31,7 @@ class Encoder(nn.Module):
                                  EncoderBlock(self.depth_scale),
                                  EncoderBlock(self.depth_scale),
                                  )
-        self.out_dim = 128 * 4 * 4
+        self.out_dim = 64 * 4 * 4
 
     def forward(self, x):
         x = x.view(x.shape[0], 63, 128, 128)
@@ -41,8 +41,8 @@ class Encoder(nn.Module):
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
-        self.dim_latent = 128 * 4 * 4
-        self.depth_scale0 = 128
+        self.dim_latent = 64 * 4 * 4
+        self.depth_scale0 = 64
         self.dim_output = 3
         self.equalized_lr = True
         self.init_bias_to_zero = True
@@ -140,7 +140,7 @@ class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
         self.dim_input = 66
-        self.depth_scale0 = 128
+        self.depth_scale0 = 64
         self.size_decision_layer = 1
         self.equalized_lr = True
         self.init_bias_to_zero = True
