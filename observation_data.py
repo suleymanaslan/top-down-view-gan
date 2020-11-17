@@ -1,3 +1,4 @@
+import cv2
 import torch
 import numpy as np
 from collections import deque
@@ -10,15 +11,15 @@ class ObservationData:
         self.data_buffer_size = data_buffer_size
         self.batch_size = batch_size
         self.obs_buffer = deque([], maxlen=self.obs_buffer_size)
-        self.data_x = np.zeros((self.data_buffer_size, 3, self.obs_buffer_size, 128, 128), dtype=np.uint8)
-        self.data_y = np.zeros((self.data_buffer_size, 3, 128, 128), dtype=np.uint8)
+        self.data_x = np.zeros((self.data_buffer_size, 3, self.obs_buffer_size, 64, 64), dtype=np.uint8)
+        self.data_y = np.zeros((self.data_buffer_size, 3, 64, 64), dtype=np.uint8)
         self.counter = 0
         self.cur_top_down_obs = None
         self._reset_buffer()
 
     def _reset_buffer(self):
         for _ in range(self.obs_buffer_size):
-            self.obs_buffer.append(np.zeros((3, 128, 128), dtype=np.uint8))
+            self.obs_buffer.append(np.zeros((3, 64, 64), dtype=np.uint8))
         self.cur_top_down_obs = None
 
     def _to_torch(self, np_array, x=False):
@@ -30,13 +31,17 @@ class ObservationData:
     def _add_sample(self):
         data_ix = self.counter % self.data_buffer_size
         self.data_x[data_ix] = np.array(self.obs_buffer).transpose((1, 0, 2, 3))
-        self.data_y[data_ix] = self.cur_top_down_obs.transpose((2, 0, 1))
+        self.data_y[data_ix] = self._process_obs(self.cur_top_down_obs).transpose((2, 0, 1))
         self.counter += 1
+
+    @staticmethod
+    def _process_obs(obs):
+        return cv2.resize(obs, (64, 64))
 
     def append_obs(self, obs, top_down_obs, new_episode=False):
         if new_episode:
             self._reset_buffer()
-        self.obs_buffer.append(obs.transpose((2, 0, 1)))
+        self.obs_buffer.append(self._process_obs(obs).transpose((2, 0, 1)))
         if self.cur_top_down_obs is None:
             self.cur_top_down_obs = top_down_obs
         else:
