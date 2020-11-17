@@ -8,11 +8,11 @@ from network_utils import mini_batch_std_dev
 
 
 class EncoderBlock(nn.Module):
-    def __init__(self, depth_scale):
+    def __init__(self, in_channels, out_channels):
         super(EncoderBlock, self).__init__()
-        self.block = nn.Sequential(nn.Conv2d(depth_scale, depth_scale, 3, 1, 1),
+        self.block = nn.Sequential(nn.Conv2d(in_channels, out_channels, 3, 1, 1),
                                    nn.LeakyReLU(0.2, inplace=True),
-                                   nn.Conv2d(depth_scale, depth_scale, 3, 1, 1),
+                                   nn.Conv2d(out_channels, out_channels, 3, 1, 1),
                                    nn.LeakyReLU(0.2, inplace=True), nn.AvgPool2d(2),
                                    )
 
@@ -23,26 +23,24 @@ class EncoderBlock(nn.Module):
 class Encoder(nn.Module):
     def __init__(self):
         super(Encoder, self).__init__()
-        self.depth_scale = 64
-        self.net = nn.Sequential(nn.Conv2d(63, self.depth_scale, 1, 1, 0), nn.LeakyReLU(0.2, inplace=True),
-                                 EncoderBlock(self.depth_scale),
-                                 EncoderBlock(self.depth_scale),
-                                 EncoderBlock(self.depth_scale),
-                                 EncoderBlock(self.depth_scale),
-                                 EncoderBlock(self.depth_scale),
+        self.net = nn.Sequential(nn.Conv2d(63, 64, 1, 1, 0), nn.LeakyReLU(0.2, inplace=True),
+                                 EncoderBlock(64, 128),
+                                 EncoderBlock(128, 128),
+                                 EncoderBlock(128, 256),
+                                 EncoderBlock(256, 256),
                                  )
-        self.out_dim = 64 * 4 * 4
+        self.out_dim = 256 * 4 * 4
 
     def forward(self, x):
-        x = x.view(x.shape[0], 63, 128, 128)
-        return self.net(x).view(-1, self.out_dim)
+        x = x.view(x.shape[0], 63, 64, 64)
+        return self.net(x).view(x.shape[0], self.out_dim)
 
 
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
-        self.dim_latent = 64 * 4 * 4
-        self.depth_scale0 = 64
+        self.dim_latent = 256 * 4 * 4
+        self.depth_scale0 = 256
         self.dim_output = 3
         self.equalized_lr = True
         self.init_bias_to_zero = True
@@ -72,7 +70,9 @@ class Generator(nn.Module):
 
         self.generation_activation = None
 
-    def add_scale(self, depth_new_scale):
+    def add_scale(self, depth_new_scale=None):
+        if depth_new_scale is None:
+            depth_new_scale = self.depth_scale0
         depth_last_scale = self.scales_depth[-1]
         self.scales_depth.append(depth_new_scale)
 
@@ -140,7 +140,7 @@ class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
         self.dim_input = 66
-        self.depth_scale0 = 64
+        self.depth_scale0 = 256
         self.size_decision_layer = 1
         self.equalized_lr = True
         self.init_bias_to_zero = True
@@ -173,7 +173,9 @@ class Discriminator(nn.Module):
 
         self.leaky_relu = torch.nn.LeakyReLU(0.2, inplace=True)
 
-    def add_scale(self, depth_new_scale):
+    def add_scale(self, depth_new_scale=None):
+        if depth_new_scale is None:
+            depth_new_scale = self.depth_scale0
         depth_last_scale = self.scales_depth[-1]
         self.scales_depth.append(depth_new_scale)
 

@@ -14,7 +14,7 @@ from network_utils import WGANGP, wgangp_gradient_penalty, finite_check
 
 
 class Model:
-    def __init__(self, max_scale=5, steps_per_scale=int(25e3), lr=1e-3):
+    def __init__(self, max_scale, steps_per_scale, lr):
         self.device = torch.device("cuda:0")
         self.max_scale = max_scale
         self.image_size = 2 ** (self.max_scale + 2)
@@ -108,7 +108,7 @@ class Model:
             self.alpha = max(0.0, self.alpha - self.alpha_update_cons)
 
         if self.scale < self.max_scale:
-            batch_x = F.avg_pool2d(batch_x.view(batch_x.shape[0], 63, 128, 128), (2, 2))
+            batch_x = F.avg_pool2d(batch_x.view(batch_x.shape[0], 63, 64, 64), (2, 2))
             batch_y = F.avg_pool2d(batch_y, (2, 2))
             for _ in range(1, self.max_scale - self.scale):
                 batch_x = F.avg_pool2d(batch_x, (2, 2))
@@ -173,8 +173,8 @@ class Model:
 
         if self.steps % self.steps_per_scale == 0:
             if self.scale < self.max_scale:
-                self.generator.add_scale(depth_new_scale=512)
-                self.discriminator.add_scale(depth_new_scale=512)
+                self.generator.add_scale()
+                self.discriminator.add_scale()
 
                 self.generator.to(self.device)
                 self.discriminator.to(self.device)
