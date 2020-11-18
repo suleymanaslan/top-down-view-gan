@@ -68,6 +68,16 @@ class Model:
             torch.save(self.discriminator.state_dict(), f"{self.model_dir}/discriminator.pth")
 
     def load(self, load_dir):
+        while self.scale < self.max_scale:
+            self.generator.add_scale()
+            self.discriminator.add_scale()
+            self.scale += 1
+
+        self.generator.to(self.device)
+        self.discriminator.to(self.device)
+        self._init_optimizers()
+        self.alpha = 1.0
+
         self.generator.load_state_dict(torch.load(f"{load_dir}/generator.pth"))
         self.discriminator.load_state_dict(torch.load(f"{load_dir}/discriminator.pth"))
 
@@ -172,6 +182,7 @@ class Model:
             self.save_generated()
 
         if self.steps % self.steps_per_scale == 0:
+            self.save()
             if self.scale < self.max_scale:
                 self.generator.add_scale()
                 self.discriminator.add_scale()
