@@ -22,11 +22,8 @@ class ObservationData:
             self.obs_buffer.append(np.zeros((3, 64, 64), dtype=np.uint8))
         self.cur_top_down_obs = None
 
-    def _to_torch(self, np_array, x=False):
-        if x:
-            return (torch.from_numpy(np_array) / 255.0).to(self.gpu_device)
-        else:
-            return (torch.from_numpy(np_array) / 255.0).to(self.gpu_device)
+    def _to_torch(self, np_array):
+        return (torch.from_numpy(np_array) / 255.0).to(self.gpu_device)
 
     def _add_sample(self):
         data_ix = self.counter % self.data_buffer_size
@@ -56,13 +53,13 @@ class ObservationData:
         batch_ix = np.random.choice(available_data, batch_size)
         batch_x = self.data_x[batch_ix]
         batch_y = self.data_y[batch_ix]
-        return self._to_torch(batch_x, x=True), self._to_torch(batch_y)
+        return self._to_torch(batch_x), self._to_torch(batch_y)
 
     def get_episode(self):
         episode_ix = np.random.choice(760) + 1
         episode_x = self.data_x[episode_ix * self.obs_buffer_size:(episode_ix + 1) * self.obs_buffer_size]
         episode_y = self.data_y[episode_ix * self.obs_buffer_size:(episode_ix + 1) * self.obs_buffer_size]
-        return self._to_torch(episode_x, x=True), self._to_torch(episode_y)
+        return self._to_torch(episode_x), self._to_torch(episode_y)
 
     def save(self):
         np.save(f"data/data_x.npy", self.data_x)

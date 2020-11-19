@@ -201,7 +201,7 @@ class Model:
         with torch.no_grad():
             return self.generator(batch_x)
 
-    def animate_episodes(self, obs_data, episodes=2):
+    def animate_episode_data(self, obs_data, episodes=2):
         pad = [(0, 0), (2, 2), (2, 2), (0, 0)]
         anim_img = None
         for _ in range(episodes):
@@ -218,15 +218,53 @@ class Model:
             anim_img = ep_img if anim_img is None else np.concatenate((anim_img, ep_img), axis=0)
         return anim_img
 
-    def animate_episode_grid(self, obs_data):
-        left_img = self.animate_episodes(obs_data)
-        right_img = self.animate_episodes(obs_data)
+    @staticmethod
+    def get_episode_x(env):
+        episode_x = None
+        for _ in range(env.obs_buffer_size):
+            obs, _ = env.step()
+            episode_x = obs if episode_x is None else torch.cat((episode_x, obs), dim=0)
+        return episode_x
+
+    def animate_episode_env(self, env, episodes=2):
+        pad = [(0, 0), (2, 2), (2, 2), (0, 0)]
+        anim_img = None
+        for _ in range(episodes):
+            episode_x = self.get_episode_x(env)
+            generated_y = self.generate(episode_x)
+
+            episode_x = (episode_x[:, :, -1, :, :].permute(0, 2, 3, 1).cpu().numpy().clip(0, 1) * 255).astype(np.uint8)
+            generated_y = (generated_y.permute(0, 2, 3, 1).cpu().numpy().clip(0, 1) * 255).astype(np.uint8)
+
+            episode_x = np.pad(episode_x, pad, constant_values=1)
+            generated_y = np.pad(generated_y, pad, constant_values=1)
+
+            ep_img = np.concatenate((episode_x, generated_y), axis=2)
+            anim_img = ep_img if anim_img is None else np.concatenate((anim_img, ep_img), axis=0)
+        return anim_img
+
+    def animate_training_episodes(self, obs_data):
+        left_img = self.animate_episode_data(obs_data)
+        right_img = self.animate_episode_data(obs_data)
         top_img = np.concatenate((left_img, right_img), axis=2)
 
-        left_img = self.animate_episodes(obs_data)
-        right_img = self.animate_episodes(obs_data)
+        left_img = self.animate_episode_data(obs_data)
+        right_img = self.animate_episode_data(obs_data)
         bot_img = np.concatenate((left_img, right_img), axis=2)
 
         anim_img = np.concatenate((top_img, bot_img), axis=1)
 
-        write_apng("results/anim_img.png", anim_img, delay=100, use_palette=False)
+        write_apng("results/anim_train.png", anim_img, delay=100, use_palette=False)
+
+    def animate_testing_episodes(self, env):
+        left_img = self.animate_episode_env(env)
+        right_img = self.animate_episode_env(env)
+        top_img = np.concatenate((left_img, right_img), axis=2)
+
+        left_img = self.animate_episode_env(env)
+        right_img = self.animate_episode_env(env)
+        bot_img = np.concatenate((left_img, right_img), axis=2)
+
+        anim_img = np.concatenate((top_img, bot_img), axis=1)
+
+        write_apng("results/anim_test.png", anim_img, delay=100, use_palette=False)
