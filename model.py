@@ -9,6 +9,7 @@ import numpy as np
 import torch.optim as optim
 import torch.nn.functional as F
 from datetime import datetime
+from numpngw import write_apng
 from network import Generator, Discriminator
 from network_utils import WGANGP, wgangp_gradient_penalty, finite_check
 
@@ -194,3 +195,38 @@ class Model:
 
                 self.scale += 1
                 self.alpha = 1.0
+
+    def generate(self, batch_x):
+        assert self.scale == self.max_scale
+        with torch.no_grad():
+            return self.generator(batch_x)
+
+    def animate_episodes(self, obs_data, episodes=2):
+        pad = [(0, 0), (2, 2), (2, 2), (0, 0)]
+        anim_img = None
+        for _ in range(episodes):
+            episode_x, _ = obs_data.get_episode()
+            generated_y = self.generate(episode_x)
+
+            episode_x = (episode_x[:, :, -1, :, :].permute(0, 2, 3, 1).cpu().numpy().clip(0, 1) * 255).astype(np.uint8)
+            generated_y = (generated_y.permute(0, 2, 3, 1).cpu().numpy().clip(0, 1) * 255).astype(np.uint8)
+
+            episode_x = np.pad(episode_x, pad, constant_values=1)
+            generated_y = np.pad(generated_y, pad, constant_values=1)
+
+            ep_img = np.concatenate((episode_x, generated_y), axis=2)
+            anim_img = ep_img if anim_img is None else np.concatenate((anim_img, ep_img), axis=0)
+        return anim_img
+
+    def animate_episode_grid(self, obs_data):
+        left_img = self.animate_episodes(obs_data)
+        right_img = self.animate_episodes(obs_data)
+        top_img = np.concatenate((left_img, right_img), axis=2)
+
+        left_img = self.animate_episodes(obs_data)
+        right_img = self.animate_episodes(obs_data)
+        bot_img = np.concatenate((left_img, right_img), axis=2)
+
+        anim_img = np.concatenate((top_img, bot_img), axis=1)
+
+        write_apng("results/anim_img.png", anim_img, delay=100, use_palette=False)

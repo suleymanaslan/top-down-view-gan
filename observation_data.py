@@ -58,6 +58,12 @@ class ObservationData:
         batch_y = self.data_y[batch_ix]
         return self._to_torch(batch_x, x=True), self._to_torch(batch_y)
 
+    def get_episode(self):
+        episode_ix = np.random.choice(760) + 1
+        episode_x = self.data_x[episode_ix * self.obs_buffer_size:(episode_ix + 1) * self.obs_buffer_size]
+        episode_y = self.data_y[episode_ix * self.obs_buffer_size:(episode_ix + 1) * self.obs_buffer_size]
+        return self._to_torch(episode_x, x=True), self._to_torch(episode_y)
+
     def save(self):
         np.save(f"data/data_x.npy", self.data_x)
         np.save(f"data/data_y.npy", self.data_y)

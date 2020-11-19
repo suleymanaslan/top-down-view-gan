@@ -128,3 +128,4 @@ dmypy.json
 datasets/
 trained_models/
 data/
+results/
