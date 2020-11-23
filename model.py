@@ -15,12 +15,13 @@ from network_utils import WGANGP, wgangp_gradient_penalty, finite_check
 
 
 class Model:
-    def __init__(self, max_scale, steps_per_scale, lr):
+    def __init__(self, max_scale, steps_per_scale, lr, multiview=False):
         self.device = torch.device("cuda:0")
         self.max_scale = max_scale
         self.image_size = 2 ** (self.max_scale + 2)
         self.steps_per_scale = steps_per_scale
         self.lr = lr
+        self.multiview = multiview
 
         self.model_dir = None
         self.generated_img = None
@@ -40,8 +41,8 @@ class Model:
         self.loss_criterion = WGANGP(self.device)
 
     def _init_networks(self):
-        self.generator = Generator().to(self.device)
-        self.discriminator = Discriminator().to(self.device)
+        self.generator = Generator(self.multiview).to(self.device)
+        self.discriminator = Discriminator(self.multiview).to(self.device)
 
     def _init_optimizers(self):
         self.optimizer_g = optim.Adam(filter(lambda p: p.requires_grad, self.generator.parameters()),
@@ -114,24 +115,27 @@ class Model:
         self.steps += 1
         size = 2 ** (self.scale + 2)
         original_batch_x = batch_x
+        in_channel = 3
+        in_depth = 2 if self.multiview else 21
 
         if self.steps % self.update_alpha_step == 0 and self.alpha > 0:
             self.alpha = max(0.0, self.alpha - self.alpha_update_cons)
 
         if self.scale < self.max_scale:
-            batch_x = F.avg_pool2d(batch_x.view(batch_x.shape[0], 63, 64, 64), (2, 2))
+            batch_x = F.avg_pool2d(batch_x.view(batch_x.shape[0], in_channel * in_depth, 64, 64), (2, 2))
             batch_y = F.avg_pool2d(batch_y, (2, 2))
             for _ in range(1, self.max_scale - self.scale):
                 batch_x = F.avg_pool2d(batch_x, (2, 2))
                 batch_y = F.avg_pool2d(batch_y, (2, 2))
-            batch_x = batch_x.view(batch_x.shape[0], 3, 21, size, size)
+            batch_x = batch_x.view(batch_x.shape[0], in_channel, in_depth, size, size)
 
         if self.alpha > 0:
-            low_res_real_x = F.avg_pool2d(batch_x.view(batch_x.shape[0], 63, size, size), (2, 2))
+            low_res_real_x = F.avg_pool2d(batch_x.view(batch_x.shape[0], in_channel * in_depth, size, size), (2, 2))
             low_res_real_y = F.avg_pool2d(batch_y, (2, 2))
             low_res_real_x = F.interpolate(low_res_real_x, scale_factor=2, mode='nearest')
             low_res_real_y = F.interpolate(low_res_real_y, scale_factor=2, mode='nearest')
-            batch_x = self.alpha * low_res_real_x.view(batch_x.shape[0], 3, 21, size, size) + (1 - self.alpha) * batch_x
+            batch_x = self.alpha * low_res_real_x.view(batch_x.shape[0], in_channel, in_depth, size, size) + (
+                        1 - self.alpha) * batch_x
             batch_y = self.alpha * low_res_real_y + (1 - self.alpha) * batch_y
 
         self.generator.set_alpha(self.alpha)

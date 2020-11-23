@@ -21,9 +21,10 @@ class EncoderBlock(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self):
+    def __init__(self, multiview=False):
         super(Encoder, self).__init__()
-        self.net = nn.Sequential(nn.Conv2d(63, 64, 1, 1, 0), nn.LeakyReLU(0.2, inplace=True),
+        self.in_channel = 3 * 2 if multiview else 3 * 21
+        self.net = nn.Sequential(nn.Conv2d(self.in_channel, 64, 1, 1, 0), nn.LeakyReLU(0.2, inplace=True),
                                  EncoderBlock(64, 128),
                                  EncoderBlock(128, 128),
                                  EncoderBlock(128, 256),
@@ -32,12 +33,12 @@ class Encoder(nn.Module):
         self.out_dim = 256 * 4 * 4
 
     def forward(self, x):
-        x = x.view(x.shape[0], 63, 64, 64)
+        x = x.view(x.shape[0], self.in_channel, 64, 64)
         return self.net(x).view(x.shape[0], self.out_dim)
 
 
 class Generator(nn.Module):
-    def __init__(self):
+    def __init__(self, multiview=False):
         super(Generator, self).__init__()
         self.dim_latent = 256 * 4 * 4
         self.depth_scale0 = 256
@@ -46,7 +47,7 @@ class Generator(nn.Module):
         self.init_bias_to_zero = True
         self.scales_depth = [self.depth_scale0]
 
-        self.encoder = Encoder()
+        self.encoder = Encoder(multiview)
 
         self.scale_layers = nn.ModuleList()
 
@@ -128,18 +129,19 @@ class Generator(nn.Module):
 
 
 class DiscriminatorFormat(nn.Module):
-    def __init__(self):
+    def __init__(self, multiview=False):
         super(DiscriminatorFormat, self).__init__()
+        self.in_channel = 3 * 2 if multiview else 3 * 21
 
     def forward(self, x, y, size):
-        x = x.view(x.shape[0], 63, size, size)
+        x = x.view(x.shape[0], self.in_channel, size, size)
         return torch.cat((x, y), dim=1)
 
 
 class Discriminator(nn.Module):
-    def __init__(self):
+    def __init__(self, multiview=False):
         super(Discriminator, self).__init__()
-        self.dim_input = 66
+        self.dim_input = 3 * 3 if multiview else 3 * 22
         self.depth_scale0 = 256
         self.size_decision_layer = 1
         self.equalized_lr = True
@@ -148,7 +150,7 @@ class Discriminator(nn.Module):
         self.dim_entry_scale0 = self.depth_scale0 + 1
         self.scales_depth = [self.depth_scale0]
 
-        self.discriminator_format = DiscriminatorFormat()
+        self.discriminator_format = DiscriminatorFormat(multiview)
 
         self.scale_layers = nn.ModuleList()
 
