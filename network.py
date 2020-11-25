@@ -21,9 +21,9 @@ class EncoderBlock(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, multiview=False):
+    def __init__(self):
         super(Encoder, self).__init__()
-        self.in_channel = 3 * 2 if multiview else 3 * 21
+        self.in_channel = 3 * 21
         self.net = nn.Sequential(nn.Conv2d(self.in_channel, 64, 1, 1, 0), nn.LeakyReLU(0.2, inplace=True),
                                  EncoderBlock(64, 128),
                                  EncoderBlock(128, 128),
@@ -37,6 +37,31 @@ class Encoder(nn.Module):
         return self.net(x).view(x.shape[0], self.out_dim)
 
 
+class MultiViewEncoder(nn.Module):
+    def __init__(self):
+        super(MultiViewEncoder, self).__init__()
+        self.net_first_person = nn.Sequential(nn.Conv2d(3, 32, 1, 1, 0), nn.LeakyReLU(0.2, inplace=True),
+                                              EncoderBlock(32, 64),
+                                              EncoderBlock(64, 64),
+                                              EncoderBlock(64, 128),
+                                              EncoderBlock(128, 128),
+                                              )
+        self.net_top_down = nn.Sequential(nn.Conv2d(3, 32, 1, 1, 0), nn.LeakyReLU(0.2, inplace=True),
+                                          EncoderBlock(32, 64),
+                                          EncoderBlock(64, 64),
+                                          EncoderBlock(64, 128),
+                                          EncoderBlock(128, 128),
+                                          )
+        self.out_dim = 256 * 4 * 4
+
+    def forward(self, x):
+        x_fpv = x[:, :, 0, :, :]
+        x_tdv = x[:, :, 1, :, :]
+        feat_fpv = self.net_first_person(x_fpv).view(x_fpv.shape[0], self.out_dim // 2)
+        feat_tdv = self.net_first_person(x_tdv).view(x_tdv.shape[0], self.out_dim // 2)
+        return torch.cat((feat_fpv, feat_tdv), dim=1)
+
+
 class Generator(nn.Module):
     def __init__(self, multiview=False):
         super(Generator, self).__init__()
@@ -47,7 +72,10 @@ class Generator(nn.Module):
         self.init_bias_to_zero = True
         self.scales_depth = [self.depth_scale0]
 
-        self.encoder = Encoder(multiview)
+        if multiview:
+            self.encoder = MultiViewEncoder()
+        else:
+            self.encoder = Encoder()
 
         self.scale_layers = nn.ModuleList()
 
