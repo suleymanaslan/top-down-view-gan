@@ -1,5 +1,5 @@
-from model import Model
-from multiview_data import MultiViewData
+from model.model import Model
+from dataset_utils.multiview_data import MultiViewData
 
 model = Model(max_scale=4,
               steps_per_scale=int(25e3),

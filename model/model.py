@@ -9,9 +9,8 @@ import numpy as np
 import torch.optim as optim
 import torch.nn.functional as F
 from datetime import datetime
-from numpngw import write_apng
-from network import Generator, Discriminator
-from network_utils import WGANGP, wgangp_gradient_penalty, finite_check
+from model.network import Generator, Discriminator
+from model.network_utils import WGANGP, wgangp_gradient_penalty, finite_check
 
 
 class Model:
@@ -57,7 +56,7 @@ class Model:
 
     def _init_training(self):
         training_timestamp = str(int(time.time()))
-        self.model_dir = f'trained_models/model_{training_timestamp}/'
+        self.model_dir = f'../trained_models/model_{training_timestamp}/'
 
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
@@ -135,7 +134,7 @@ class Model:
             low_res_real_x = F.interpolate(low_res_real_x, scale_factor=2, mode='nearest')
             low_res_real_y = F.interpolate(low_res_real_y, scale_factor=2, mode='nearest')
             batch_x = self.alpha * low_res_real_x.view(batch_x.shape[0], in_channel, in_depth, size, size) + (
-                        1 - self.alpha) * batch_x
+                    1 - self.alpha) * batch_x
             batch_y = self.alpha * low_res_real_y + (1 - self.alpha) * batch_y
 
         self.generator.set_alpha(self.alpha)
@@ -257,8 +256,7 @@ class Model:
         bot_img = np.concatenate((left_img, right_img), axis=2)
 
         anim_img = np.concatenate((top_img, bot_img), axis=1)
-
-        write_apng("results/anim_train.png", anim_img, delay=100, use_palette=False)
+        return anim_img
 
     def animate_testing_episodes(self, env):
         left_img = self.animate_episode_env(env)
@@ -270,5 +268,4 @@ class Model:
         bot_img = np.concatenate((left_img, right_img), axis=2)
 
         anim_img = np.concatenate((top_img, bot_img), axis=1)
-
-        write_apng("results/anim_test.png", anim_img, delay=100, use_palette=False)
+        return anim_img

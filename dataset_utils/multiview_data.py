@@ -57,10 +57,10 @@ class MultiViewData:
         return self._to_torch(episode_x), self._to_torch(episode_y)
 
     def save(self):
-        np.save(f"data/multiview/data_x.npy", self.data_x)
-        np.save(f"data/multiview/data_y.npy", self.data_y)
+        np.save(f"../data/multiview/data_x.npy", self.data_x)
+        np.save(f"../data/multiview/data_y.npy", self.data_y)
 
     def load(self):
-        self.data_x = np.load(f"data/multiview/data_x.npy")
-        self.data_y = np.load(f"data/multiview/data_y.npy")
+        self.data_x = np.load(f"../data/multiview/data_x.npy")
+        self.data_y = np.load(f"../data/multiview/data_y.npy")
         self.counter = self.data_buffer_size

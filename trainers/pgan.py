@@ -1,5 +1,5 @@
-from model import Model
-from observation_data import ObservationData
+from model.model import Model
+from dataset_utils.observation_data import ObservationData
 
 model = Model(max_scale=4,
               steps_per_scale=int(25e3),

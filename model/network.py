@@ -3,8 +3,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from layers import flatten, upscale2d, EqualizedLinear, EqualizedConv2d, NormalizationLayer
-from network_utils import mini_batch_std_dev
+from model.layers import flatten, upscale2d, EqualizedLinear, EqualizedConv2d, NormalizationLayer
+from model.network_utils import mini_batch_std_dev
 
 
 class EncoderBlock(nn.Module):

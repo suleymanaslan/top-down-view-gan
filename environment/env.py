@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 import gym_miniworld
 from collections import deque
-from env_utils import get_data
+from environment.env_utils import get_data
 
 
 class Env:
