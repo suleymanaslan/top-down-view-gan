@@ -56,7 +56,7 @@ class Model:
 
     def _init_training(self):
         training_timestamp = str(int(time.time()))
-        self.model_dir = f'../trained_models/model_{training_timestamp}/'
+        self.model_dir = f'trained_models/model_{training_timestamp}/'
 
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
