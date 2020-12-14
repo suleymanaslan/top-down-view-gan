@@ -61,11 +61,11 @@ class ObservationData:
         episode_y = self.data_y[episode_ix * self.obs_buffer_size:(episode_ix + 1) * self.obs_buffer_size]
         return self._to_torch(episode_x), self._to_torch(episode_y)
 
-    def save(self):
-        np.save(f"../data/observation/data_x.npy", self.data_x)
-        np.save(f"../data/observation/data_y.npy", self.data_y)
+    def save(self, data_folder):
+        np.save(f"{data_folder}/observation/data_x.npy", self.data_x)
+        np.save(f"{data_folder}/observation/data_y.npy", self.data_y)
 
-    def load(self):
-        self.data_x = np.load(f"../data/observation/data_x.npy")
-        self.data_y = np.load(f"../data/observation/data_y.npy")
+    def load(self, data_folder):
+        self.data_x = np.load(f"{data_folder}/observation/data_x.npy")
+        self.data_y = np.load(f"{data_folder}/observation/data_y.npy")
         self.counter = self.data_buffer_size

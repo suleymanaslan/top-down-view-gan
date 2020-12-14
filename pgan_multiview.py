@@ -9,7 +9,7 @@ model = Model(max_scale=4,
 multiview_data = MultiViewData(episode_duration=21,
                                data_buffer_size=int(1e5),
                                batch_size=16)
-multiview_data.load()
+multiview_data.load(data_folder="data/")
 
 for step_i in range(int(400e3)):
     x, y = multiview_data.get_sample()
