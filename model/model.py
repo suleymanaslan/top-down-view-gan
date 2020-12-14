@@ -14,13 +14,14 @@ from model.network_utils import WGANGP, wgangp_gradient_penalty, finite_check
 
 
 class Model:
-    def __init__(self, max_scale, steps_per_scale, lr, multiview=False):
+    def __init__(self, max_scale, steps_per_scale, lr, multiview=False, spatiotemporal=False):
         self.device = torch.device("cuda:0")
         self.max_scale = max_scale
         self.image_size = 2 ** (self.max_scale + 2)
         self.steps_per_scale = steps_per_scale
         self.lr = lr
         self.multiview = multiview
+        self.spatiotemporal = spatiotemporal
 
         self.model_dir = None
         self.generated_img = None
@@ -40,7 +41,7 @@ class Model:
         self.loss_criterion = WGANGP(self.device)
 
     def _init_networks(self):
-        self.generator = Generator(self.multiview).to(self.device)
+        self.generator = Generator(self.multiview, self.spatiotemporal).to(self.device)
         self.discriminator = Discriminator(self.multiview).to(self.device)
 
     def _init_optimizers(self):

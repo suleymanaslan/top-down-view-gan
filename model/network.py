@@ -37,6 +37,34 @@ class Encoder(nn.Module):
         return self.net(x).view(x.shape[0], self.out_dim)
 
 
+class SpatioTemporalEncoder(nn.Module):
+    def __init__(self):
+        super(SpatioTemporalEncoder, self).__init__()
+        self.depth = 21
+        self.spatial_net = nn.Sequential(nn.Conv2d(3, 64, 1, 1, 0), nn.LeakyReLU(0.2, inplace=True),
+                                         EncoderBlock(64, 128),
+                                         EncoderBlock(128, 128),
+                                         EncoderBlock(128, 256),
+                                         EncoderBlock(256, 256),
+                                         )
+        self.temporal_net = nn.Sequential(nn.Conv1d(4096, 4096, 3, 2, 1), nn.LeakyReLU(0.2, inplace=True),
+                                          nn.Conv1d(4096, 4096, 3, 2, 1), nn.LeakyReLU(0.2, inplace=True),
+                                          nn.Conv1d(4096, 4096, 3, 2, 1), nn.LeakyReLU(0.2, inplace=True),
+                                          nn.Conv1d(4096, 4096, 3, 1, 0), nn.LeakyReLU(0.2, inplace=True),
+                                          )
+        self.spatial_out_dim = 256 * 4 * 4
+        self.out_dim = 4096
+
+    def forward(self, x):
+        batch_size = x.shape[0]
+        x = x.permute(0, 2, 1, 3, 4).contiguous()
+        x = x.view(batch_size * self.depth, 3, 64, 64)
+        x = self.spatial_net(x).view(batch_size, self.depth, self.spatial_out_dim)
+        x = x.permute(0, 2, 1).contiguous()
+        x = self.temporal_net(x).view(batch_size, self.out_dim)
+        return x
+
+
 class MultiViewEncoder(nn.Module):
     def __init__(self):
         super(MultiViewEncoder, self).__init__()
@@ -63,19 +91,22 @@ class MultiViewEncoder(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, multiview=False):
+    def __init__(self, multiview=False, spatiotemporal=False):
         super(Generator, self).__init__()
-        self.dim_latent = 256 * 4 * 4
+        if multiview:
+            self.encoder = MultiViewEncoder()
+        else:
+            if spatiotemporal:
+                self.encoder = SpatioTemporalEncoder()
+            else:
+                self.encoder = Encoder()
+
+        self.dim_latent = self.encoder.out_dim
         self.depth_scale0 = 256
         self.dim_output = 3
         self.equalized_lr = True
         self.init_bias_to_zero = True
         self.scales_depth = [self.depth_scale0]
-
-        if multiview:
-            self.encoder = MultiViewEncoder()
-        else:
-            self.encoder = Encoder()
 
         self.scale_layers = nn.ModuleList()
 
