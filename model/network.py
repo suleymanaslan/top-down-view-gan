@@ -7,6 +7,33 @@ from model.layers import flatten, upscale2d, EqualizedLinear, EqualizedConv2d, N
 from model.network_utils import mini_batch_std_dev
 
 
+class BasicBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, stride):
+        super(BasicBlock, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.downsample = None if stride == 1 else nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride,
+                                                             bias=False)
+        self.downsample_bn = nn.BatchNorm2d(out_channels)
+
+    def forward(self, x):
+        identity = x
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+        out = self.conv2(out)
+        out = self.bn2(out)
+        if self.downsample is not None:
+            identity = self.downsample(x)
+            identity = self.downsample_bn(identity)
+        out += identity
+        out = self.relu(out)
+        return out
+
+
 class EncoderBlock(nn.Module):
     def __init__(self, in_channels, out_channels):
         super(EncoderBlock, self).__init__()
@@ -14,6 +41,17 @@ class EncoderBlock(nn.Module):
                                    nn.LeakyReLU(0.2, inplace=True),
                                    nn.Conv2d(out_channels, out_channels, 3, 1, 1),
                                    nn.LeakyReLU(0.2, inplace=True), nn.AvgPool2d(2),
+                                   )
+
+    def forward(self, x):
+        return self.block(x)
+
+
+class EncoderResNetBlock(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(EncoderResNetBlock, self).__init__()
+        self.block = nn.Sequential(BasicBlock(in_channels, in_channels, stride=1),
+                                   BasicBlock(in_channels, out_channels, stride=2),
                                    )
 
     def forward(self, x):
@@ -42,10 +80,10 @@ class SpatioTemporalEncoder(nn.Module):
         super(SpatioTemporalEncoder, self).__init__()
         self.depth = 21
         self.spatial_net = nn.Sequential(nn.Conv2d(3, 32, 1, 1, 0), nn.LeakyReLU(0.2, inplace=True),
-                                         EncoderBlock(32, 64),
-                                         EncoderBlock(64, 64),
-                                         EncoderBlock(64, 128),
-                                         EncoderBlock(128, 128),
+                                         EncoderResNetBlock(32, 64),
+                                         EncoderResNetBlock(64, 64),
+                                         EncoderResNetBlock(64, 128),
+                                         EncoderResNetBlock(128, 128),
                                          )
         self.temporal_net = nn.Sequential(nn.Conv1d(2048, 2048, 3, 2, 1), nn.LeakyReLU(0.2, inplace=True),
                                           nn.Conv1d(2048, 2048, 3, 2, 1), nn.LeakyReLU(0.2, inplace=True),
