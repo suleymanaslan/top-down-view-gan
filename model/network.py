@@ -41,18 +41,18 @@ class SpatioTemporalEncoder(nn.Module):
     def __init__(self):
         super(SpatioTemporalEncoder, self).__init__()
         self.depth = 21
-        self.spatial_net = nn.Sequential(nn.Conv2d(3, 64, 1, 1, 0), nn.LeakyReLU(0.2, inplace=True),
+        self.spatial_net = nn.Sequential(nn.Conv2d(3, 32, 1, 1, 0), nn.LeakyReLU(0.2, inplace=True),
+                                         EncoderBlock(32, 64),
+                                         EncoderBlock(64, 64),
                                          EncoderBlock(64, 128),
                                          EncoderBlock(128, 128),
-                                         EncoderBlock(128, 256),
-                                         EncoderBlock(256, 256),
                                          )
-        self.temporal_net = nn.Sequential(nn.Conv1d(4096, 4096, 3, 2, 1), nn.LeakyReLU(0.2, inplace=True),
-                                          nn.Conv1d(4096, 4096, 3, 2, 1), nn.LeakyReLU(0.2, inplace=True),
-                                          nn.Conv1d(4096, 4096, 3, 2, 1), nn.LeakyReLU(0.2, inplace=True),
+        self.temporal_net = nn.Sequential(nn.Conv1d(2048, 2048, 3, 2, 1), nn.LeakyReLU(0.2, inplace=True),
+                                          nn.Conv1d(2048, 2048, 3, 2, 1), nn.LeakyReLU(0.2, inplace=True),
+                                          nn.Conv1d(2048, 4096, 3, 2, 1), nn.LeakyReLU(0.2, inplace=True),
                                           nn.Conv1d(4096, 4096, 3, 1, 0), nn.LeakyReLU(0.2, inplace=True),
                                           )
-        self.spatial_out_dim = 256 * 4 * 4
+        self.spatial_out_dim = 128 * 4 * 4
         self.out_dim = 4096
 
     def forward(self, x):
