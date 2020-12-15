@@ -63,10 +63,10 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
         self.in_channel = 3 * 21
         self.net = nn.Sequential(nn.Conv2d(self.in_channel, 64, 1, 1, 0), nn.LeakyReLU(0.2, inplace=True),
-                                 EncoderBlock(64, 128),
-                                 EncoderBlock(128, 128),
-                                 EncoderBlock(128, 256),
-                                 EncoderBlock(256, 256),
+                                 EncoderResNetBlock(64, 128),
+                                 EncoderResNetBlock(128, 128),
+                                 EncoderResNetBlock(128, 256),
+                                 EncoderResNetBlock(256, 256),
                                  )
         self.out_dim = 256 * 4 * 4
 
