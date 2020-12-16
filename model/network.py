@@ -47,6 +47,20 @@ class EncoderBlock(nn.Module):
         return self.block(x)
 
 
+class Encoder3DBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel=3, padding=1, pool_kernel=2):
+        super(Encoder3DBlock, self).__init__()
+        self.block = nn.Sequential(nn.Conv3d(in_channels, out_channels, 3, 1, 1),
+                                   nn.LeakyReLU(0.2, inplace=True),
+                                   nn.Conv3d(out_channels, out_channels, kernel, 1, padding),
+                                   nn.LeakyReLU(0.2, inplace=True),
+                                   nn.AvgPool3d(pool_kernel),
+                                   )
+
+    def forward(self, x):
+        return self.block(x)
+
+
 class EncoderResNetBlock(nn.Module):
     def __init__(self, in_channels, out_channels):
         super(EncoderResNetBlock, self).__init__()
@@ -103,6 +117,21 @@ class SpatioTemporalEncoder(nn.Module):
         return x
 
 
+class Encoder3D(nn.Module):
+    def __init__(self):
+        super(Encoder3D, self).__init__()
+        self.depth = 21
+        self.net = nn.Sequential(Encoder3DBlock(3, 32, kernel=[2, 3, 3], padding=[0, 1, 1]),
+                                 Encoder3DBlock(32, 64),
+                                 Encoder3DBlock(64, 128, kernel=[2, 3, 3], padding=[0, 1, 1]),
+                                 Encoder3DBlock(128, 256, kernel=[2, 3, 3], padding=[0, 1, 1], pool_kernel=[1, 2, 2]),
+                                 )
+        self.out_dim = 256 * 4 * 4
+
+    def forward(self, x):
+        return self.net(x).view(x.shape[0], self.out_dim)
+
+
 class MultiViewEncoder(nn.Module):
     def __init__(self):
         super(MultiViewEncoder, self).__init__()
@@ -135,7 +164,7 @@ class Generator(nn.Module):
             self.encoder = MultiViewEncoder()
         else:
             if spatiotemporal:
-                self.encoder = SpatioTemporalEncoder()
+                self.encoder = Encoder3D()
             else:
                 self.encoder = Encoder()
 
