@@ -9,7 +9,7 @@ import numpy as np
 import torch.optim as optim
 import torch.nn.functional as F
 from datetime import datetime
-from model.network import Generator, Discriminator
+from model.network import Generator, Discriminator, Encoder, Encoder3D, MultiViewEncoder
 from model.network_utils import WGANGP, wgangp_gradient_penalty, finite_check
 
 
@@ -41,8 +41,17 @@ class Model:
         self.loss_criterion = WGANGP(self.device)
 
     def _init_networks(self):
-        self.generator = Generator(self.multiview, self.spatiotemporal).to(self.device)
-        self.discriminator = Discriminator(self.multiview).to(self.device)
+        if self.multiview:
+            self.encoder_g = MultiViewEncoder()
+            self.encoder_d = MultiViewEncoder()
+        elif self.spatiotemporal:
+            self.encoder_g = Encoder3D()
+            self.encoder_d = Encoder3D()
+        else:
+            self.encoder_g = Encoder()
+            self.encoder_d = Encoder()
+        self.generator = Generator(self.encoder_g).to(self.device)
+        self.discriminator = Discriminator(self.encoder_d).to(self.device)
 
     def _init_optimizers(self):
         self.optimizer_g = optim.Adam(filter(lambda p: p.requires_grad, self.generator.parameters()),
@@ -113,29 +122,17 @@ class Model:
             self._init_training()
 
         self.steps += 1
-        size = 2 ** (self.scale + 2)
-        original_batch_x = batch_x
-        in_channel = 3
-        in_depth = 2 if self.multiview else 21
-
         if self.steps % self.update_alpha_step == 0 and self.alpha > 0:
             self.alpha = max(0.0, self.alpha - self.alpha_update_cons)
 
         if self.scale < self.max_scale:
-            batch_x = F.avg_pool2d(batch_x.view(batch_x.shape[0], in_channel * in_depth, 64, 64), (2, 2))
             batch_y = F.avg_pool2d(batch_y, (2, 2))
             for _ in range(1, self.max_scale - self.scale):
-                batch_x = F.avg_pool2d(batch_x, (2, 2))
                 batch_y = F.avg_pool2d(batch_y, (2, 2))
-            batch_x = batch_x.view(batch_x.shape[0], in_channel, in_depth, size, size)
 
         if self.alpha > 0:
-            low_res_real_x = F.avg_pool2d(batch_x.view(batch_x.shape[0], in_channel * in_depth, size, size), (2, 2))
             low_res_real_y = F.avg_pool2d(batch_y, (2, 2))
-            low_res_real_x = F.interpolate(low_res_real_x, scale_factor=2, mode='nearest')
             low_res_real_y = F.interpolate(low_res_real_y, scale_factor=2, mode='nearest')
-            batch_x = self.alpha * low_res_real_x.view(batch_x.shape[0], in_channel, in_depth, size, size) + (
-                    1 - self.alpha) * batch_x
             batch_y = self.alpha * low_res_real_y + (1 - self.alpha) * batch_y
 
         self.generator.set_alpha(self.alpha)
@@ -143,16 +140,16 @@ class Model:
 
         self.optimizer_d.zero_grad()
 
-        pred_real_d = self.discriminator(batch_x, batch_y, size)
+        pred_real_d = self.discriminator(batch_x, batch_y)
         loss_d = self.loss_criterion.get_criterion(pred_real_d, True)
         all_loss_d = loss_d
 
-        pred_fake_g = self.generator(original_batch_x)
-        pred_fake_d = self.discriminator(batch_x, pred_fake_g.detach(), size, False)
+        pred_fake_g = self.generator(batch_x)
+        pred_fake_d = self.discriminator(batch_x, pred_fake_g.detach(), False)
         loss_d_fake = self.loss_criterion.get_criterion(pred_fake_d, False)
         all_loss_d += loss_d_fake
 
-        loss_d_grad = wgangp_gradient_penalty(batch_x, batch_y, pred_fake_g.detach(), size,
+        loss_d_grad = wgangp_gradient_penalty(batch_x, batch_y, pred_fake_g.detach(),
                                               self.discriminator, weight=10.0, backward=True)
 
         loss_epsilon = (pred_real_d[:, 0] ** 2).sum() * self.epsilon_d
@@ -164,7 +161,7 @@ class Model:
 
         self.optimizer_g.zero_grad()
 
-        pred_fake_d, phi_g_fake = self.discriminator(batch_x, pred_fake_g, size, True)
+        pred_fake_d, phi_g_fake = self.discriminator(batch_x, pred_fake_g, True)
         loss_g_fake = self.loss_criterion.get_criterion(pred_fake_d, True)
         loss_g_fake.backward(retain_graph=True)
         finite_check(self.generator.parameters())
