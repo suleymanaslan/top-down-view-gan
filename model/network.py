@@ -247,10 +247,20 @@ class Generator(nn.Module):
         return x
 
 
+class DiscriminatorFormat(nn.Module):
+    def __init__(self, multiview=False):
+        super(DiscriminatorFormat, self).__init__()
+        self.in_channel = 3 * 2 if multiview else 3 * 21
+
+    def forward(self, x, y, size):
+        x = x.view(x.shape[0], self.in_channel, size, size)
+        return torch.cat((x, y), dim=1)
+
+
 class Discriminator(nn.Module):
-    def __init__(self, feat_dim):
+    def __init__(self, multiview=False):
         super(Discriminator, self).__init__()
-        self.dim_input = 3
+        self.dim_input = 3 * 3 if multiview else 3 * 22
         self.depth_scale0 = 256
         self.size_decision_layer = 1
         self.equalized_lr = True
@@ -258,6 +268,8 @@ class Discriminator(nn.Module):
         self.mini_batch_normalization = True
         self.dim_entry_scale0 = self.depth_scale0 + 1
         self.scales_depth = [self.depth_scale0]
+
+        self.discriminator_format = DiscriminatorFormat(multiview)
 
         self.scale_layers = nn.ModuleList()
 
@@ -275,7 +287,7 @@ class Discriminator(nn.Module):
             EqualizedConv2d(self.dim_entry_scale0, self.depth_scale0, 3, padding=1, equalized=self.equalized_lr,
                             init_bias_to_zero=self.init_bias_to_zero))
         self.group_scale0.append(
-            EqualizedLinear(self.depth_scale0 * 16 + feat_dim, self.depth_scale0, equalized=self.equalized_lr,
+            EqualizedLinear(self.depth_scale0 * 16, self.depth_scale0, equalized=self.equalized_lr,
                             init_bias_to_zero=self.init_bias_to_zero))
 
         self.alpha = 0
@@ -303,12 +315,14 @@ class Discriminator(nn.Module):
     def set_alpha(self, alpha):
         self.alpha = alpha
 
-    def forward(self, fp_feat, td_view, get_feature=False):
+    def forward(self, x, y, size, get_feature=False):
+        x = self.discriminator_format(x, y, size)
+
         if self.alpha > 0 and len(self.from_rgb_layers) > 1:
-            z = F.avg_pool2d(td_view, (2, 2))
+            z = F.avg_pool2d(x, (2, 2))
             z = self.leaky_relu(self.from_rgb_layers[-2](z))
 
-        td_view = self.leaky_relu(self.from_rgb_layers[-1](td_view))
+        x = self.leaky_relu(self.from_rgb_layers[-1](x))
 
         merge_layer = self.alpha > 0 and len(self.scale_layers) > 1
 
@@ -316,29 +330,28 @@ class Discriminator(nn.Module):
 
         for group_layer in reversed(self.scale_layers):
             for layer in group_layer:
-                td_view = self.leaky_relu(layer(td_view))
+                x = self.leaky_relu(layer(x))
 
-            td_view = nn.AvgPool2d((2, 2))(td_view)
+            x = nn.AvgPool2d((2, 2))(x)
 
             if merge_layer:
                 merge_layer = False
-                td_view = self.alpha * z + (1 - self.alpha) * td_view
+                x = self.alpha * z + (1 - self.alpha) * x
 
             shift -= 1
 
         if self.mini_batch_normalization:
-            td_view = mini_batch_std_dev(td_view)
+            x = mini_batch_std_dev(x)
 
-        td_view = self.leaky_relu(self.group_scale0[0](td_view))
+        x = self.leaky_relu(self.group_scale0[0](x))
 
-        td_view = flatten(td_view)
-        td_view = torch.cat((td_view, fp_feat), dim=1)
+        x = flatten(x)
 
-        td_view = self.leaky_relu(self.group_scale0[1](td_view))
+        x = self.leaky_relu(self.group_scale0[1](x))
 
-        out = self.decision_layer(td_view)
+        out = self.decision_layer(x)
 
         if not get_feature:
             return out
 
-        return out, td_view
+        return out, x
