@@ -229,18 +229,20 @@ class Model:
         return anim_img
 
     @staticmethod
-    def get_episode_x(env):
+    def get_episode(env):
         episode_x = None
+        episode_y = None
         for _ in range(env.obs_buffer_size):
-            obs, _ = env.step()
+            obs, y = env.step()
             episode_x = obs if episode_x is None else torch.cat((episode_x, obs), dim=0)
-        return episode_x
+            episode_y = y if episode_y is None else torch.cat((episode_y, y), dim=0)
+        return episode_x, episode_y
 
     def animate_episode_env(self, env, episodes=2):
         pad = [(0, 0), (2, 2), (2, 2), (0, 0)]
         anim_img = None
         for _ in range(episodes):
-            episode_x = self.get_episode_x(env)
+            episode_x, _ = self.get_episode(env)
             generated_y = self.generate(episode_x)
 
             episode_x = (episode_x[:, :, -1, :, :].permute(0, 2, 3, 1).cpu().numpy().clip(0, 1) * 255).astype(np.uint8)
