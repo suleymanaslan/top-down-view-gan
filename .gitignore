@@ -129,3 +129,4 @@ datasets/
 trained_models/
 data/
 results/
+.tmp.drivedownload/
